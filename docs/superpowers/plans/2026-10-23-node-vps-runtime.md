@@ -45,7 +45,7 @@ Files: Dockerfile, .dockerignore, .env.example, docs/self-hosting.md.
 - [x] Document configuration and the security boundary; build a minimal non-root production image definition without private settings.
 - [x] Review complete diff for credentials, private infrastructure data and security regressions.
 - [x] Run final tests, both type checks and production audit.
-- [ ] Commit and push the work branch as required by repository instructions; do not merge or deploy.
+- [x] Commit and push the work branch as required by repository instructions; do not merge or deploy.
 
 ## Verification record
 
@@ -53,3 +53,5 @@ Files: Dockerfile, .dockerignore, .env.example, docs/self-hosting.md.
 - TypeScript check, Node Biome check, and production dependency audit passed.
 - Independent review found a malformed-target crash and uncancelled backend error bodies; both received failing regression tests and were fixed.
 - Container build, live backend/OAuth interoperability, capacity measurements and network enforcement remain operator release checks; no production services were changed.
+
+- Published-file privacy scan passed for all changed files. Delivery command wrapper now aborts on any failed validation; origin uses an SSH alias for the expected fork.

@@ -1,3 +1,5 @@
+> **Self-hosted Node runtime:** See [docs/self-hosting.md](docs/self-hosting.md) for the authenticated Reader/SearXNG profile. The upstream Worker instructions below describe a separate hosted-Jina integration.
+
 # Jina AI Remote MCP Server
 
 A remote Model Context Protocol (MCP) server for the Jina Reader, Search, Embeddings and Reranker APIs:

@@ -62,6 +62,7 @@ function decodeBase64Embedding(encoded: string): Float32Array {
 }
 
 export function registerJinaTools(server: McpServer, getProps: () => any, enabledTools: Set<string> | null = null) {
+	const selfHosted = Boolean(getProps().backends);
 	// Helper to get client name for guardrail check
 	// getClientVersion() only has a value on the server instance that handled
 	// `initialize`; this deployment builds a fresh server per request, so it is
@@ -242,16 +243,18 @@ export function registerJinaTools(server: McpServer, getProps: () => any, enable
 	if (isToolEnabled("read_url")) {
 		server.tool(
 			"read_url",
-			"Fetch a URL (page or PDF) as clean markdown. Pass `question` to get only the passages answering it instead of the whole page - far cheaper than reading the full body into context.",
+			selfHosted ? "Read a public page or PDF as markdown using the configured Reader." : "Fetch a URL (page or PDF) as clean markdown. Pass `question` to get only the passages answering it instead of the whole page - far cheaper than reading the full body into context.",
 			{
 				url: z.union([z.string().url(), z.array(z.string().url()).min(1).max(5)]).describe("Page or PDF URL, or up to 5 URLs to read in parallel."),
 				withAllLinks: z.boolean().optional().describe("Also return every link on the page."),
 				withAllImages: z.boolean().optional().describe("Also return every image on the page."),
+				...(selfHosted ? {} : {
 				question: z.string().optional().describe("Return only the passages answering this question, instead of the full body. Omit for the whole page."),
 				chunk_size: z.number().int().min(1).max(4096).optional().describe("Passage size in words, default 100. Larger gives more surrounding context, smaller pinpoints the answer. Comparable across scripts. Needs `question`."),
 				topk: z.number().int().min(1).max(50).optional().describe("Passages to return, default 1. Needs `question`."),
 				ocr: z.boolean().optional().describe("Read the rendered page as an image with jina-ocr-v1 instead of its HTML. Use for scanned documents and PDFs whose text is not in the markup, and to keep formulas and table structure. Parses ONE page per call, page 1 unless `page` says otherwise, and costs about 40x the tokens per page, so leave off unless the HTML path has failed you."),
 				page: z.number().int().min(1).optional().describe("Which page the OCR pass should parse, 1-based. Needs `ocr`; the HTML path returns the whole document at once.")
+				}),
 			},
 			async ({ url, withAllLinks, withAllImages, question, chunk_size, topk, ocr, page }: { url: string | string[]; withAllLinks?: boolean; withAllImages?: boolean; question?: string; chunk_size?: number; topk?: number; ocr?: boolean; page?: number }) => {
 				try {
@@ -269,7 +272,8 @@ export function registerJinaTools(server: McpServer, getProps: () => any, enable
 						const { readUrlFromConfig } = await import("../utils/read.js");
 
 						// Use the shared utility function
-						const result = await readUrlFromConfig({ url: singleUrl, withAllLinks: withAllLinks || false, withAllImages: withAllImages || false, question, chunk_size, topk, ocr, page }, props.bearerToken, props.clientIp);
+						const readUrl = props.backends?.readUrl ?? readUrlFromConfig;
+						const result = await readUrl({ url: singleUrl, withAllLinks: withAllLinks || false, withAllImages: withAllImages || false, question, chunk_size, topk, ocr, page }, props.bearerToken, props.clientIp);
 
 						if ('error' in result) {
 							return createErrorResponse(result.error);
@@ -295,7 +299,9 @@ export function registerJinaTools(server: McpServer, getProps: () => any, enable
 						const { executeParallelUrlReads } = await import("../utils/read.js");
 
 						// Execute parallel URL reads using the utility
-						const results = await executeParallelUrlReads(uniqueUrls, props.bearerToken, readTimeout, props.clientIp);
+						const results = props.backends
+							? await Promise.all(uniqueUrls.map((config) => props.backends.readUrl(config)))
+							: await executeParallelUrlReads(uniqueUrls, props.bearerToken, readTimeout, props.clientIp);
 
 						// Format results for consistent output
 						const contentItems: Array<{ type: 'text'; text: string }> = [];
@@ -335,14 +341,20 @@ export function registerJinaTools(server: McpServer, getProps: () => any, enable
 			{
 				query: z.union([z.string(), z.array(z.string()).min(1).max(5)]),
 				num: z.number().int().min(1).max(10).default(10),
-				tbs: z.string().optional().describe("Age limit: qdr:h, qdr:d, qdr:w, qdr:m, qdr:y (hour to year)."),
+				tbs: z.string().optional().describe(selfHosted ? "Age limit: qdr:d, qdr:w, qdr:m, qdr:y (day to year)." : "Age limit: qdr:h, qdr:d, qdr:w, qdr:m, qdr:y (hour to year)."),
+				...(selfHosted ? {} : {
 				location: z.string().optional(),
 				gl: z.string().optional().describe("Country code, e.g. 'de'."),
+				}),
 				hl: z.string().optional().describe("Language code, e.g. 'zh-cn'.")
 			},
 			async ({ query, num, tbs, location, gl, hl }: { query: string | string[]; num: number; tbs?: string; location?: string; gl?: string; hl?: string }) => {
 				try {
 					const props = getProps();
+
+					if (props.backends) {
+						return runSearchTool(query, (q) => ({ query: q, num, tbs, location, gl, hl }), (args: SearchWebArgs) => props.backends.searchWeb(args));
+					}
 
 					const tokenError = checkBearerToken(props.bearerToken);
 					if (tokenError) {

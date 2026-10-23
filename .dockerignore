@@ -1,0 +1,13 @@
+**
+!package.json
+!package-lock.json
+!tsconfig.json
+!tsconfig.node.json
+!worker-configuration.d.ts
+!src/
+!src/**
+**/.env*
+**/.dev.vars*
+**/*.pem
+**/*.key
+**/credentials*

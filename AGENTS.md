@@ -1,30 +1,39 @@
-# mcp-jina: Anweisungen fÃ¼r Coding-Agenten
+# Instructions for coding agents
 
-Jina AI Remote MCP Server als Cloudflare Worker (TypeScript, `wrangler`), Carls eigene Fassung (`nx3labs/mcp-jina`). **Das Repo ist Ã¶ffentlich**: Nichts Vertrauliches committen, auch nicht in Commit-Messages, Issues oder Pull Requests.
+This is a public repository. Never commit private infrastructure details,
+production domains or addresses, credentials, tokens, certificates, logs or
+backups. This applies to commit messages, issues and pull requests as well.
+Private GitHub repositories are not an approved destination for those details.
 
-## Grundregeln
-- Vor grÃ¶ÃŸeren Architekturentscheidungen (Sprache, Framework, Hosting, Datenspeicherung) erst fragen.
-- Kleine, in sich geschlossene Ã„nderungen. Ein Thema pro Branch bzw. Pull Request.
-- Keine Secrets, API-Keys (auch kein Jina-Key), Tokens, Tracking oder Analytics ins Repo. Lokale Zugangsdaten gehÃ¶ren in `.dev.vars` oder `.env`, beide stehen in `.gitignore`. Im Repo liegt hÃ¶chstens eine `.env.example` ohne Werte. Vor jedem Commit prÃ¼fen, dass nichts davon im Diff steht.
-- AbhÃ¤ngigkeiten sparsam, `package-lock.json` immer mit committen.
+## Workflow
 
-## Technik
-- TypeScript, Cloudflare Worker (`wrangler.jsonc`), MCP SDK, `agents`, `zod`. Formatierung und Lint mit Biome.
-- PrÃ¼fen vor jedem Commit: `npm ci` (nur beim ersten Mal), `npm run type-check`, `npm run lint:fix`, `npm run format`.
-- Lokal starten mit `npm run dev` (Dev-Server nur im Container, von auÃŸen nicht erreichbar und soll es bleiben).
-- **Nie `npm run deploy` oder `wrangler deploy` ausfÃ¼hren** und kein Cloudflare-Login einrichten. Die Auslieferung macht Carl selbst.
+- Use English for all code, documentation, commit messages, pull requests and replies.
+- Ask before major architecture changes unless the user has already approved them.
+- Keep changes focused, with one topic per `work/<topic>` branch.
+- Never work directly on `main`. Merge or push `main` only when explicitly requested.
+- At the start, fetch refs and check the working tree. Do not discard another
+  agent's changes. Resume a matching work branch or start from current `main`.
+- Shared checkouts are used by one coding agent at a time.
+- Before finishing, commit and push the work branch and leave the tree clean.
+- Keep dependencies minimal and commit `package-lock.json` with dependency changes.
+- Inspect every staged diff for secrets and private configuration before committing.
 
-## Arbeitsumgebung devbox (Claude Code und Codex auf Carls Server)
-Gilt, wenn du in `/projects/mcp-jina` im Container `devbox` arbeitest. Carl steuert dich meist vom Handy aus.
-- Arbeite auf einem eigenen Branch `work/<thema>`, nie direkt auf `main`. Committe in kleinen Schritten und pushe den Branch (`git push -u origin work/<thema>`).
-- **Nach `main` Ã¼bernehmen nur, wenn Carl es ausdrÃ¼cklich sagt** (z. B. â€žÃ¼bernehmenâ€œ): `main` aktualisieren, Branch mergen, TypprÃ¼fung und Lint prÃ¼fen, `main` pushen.
-- Offene Pull Requests (z. B. von Codex Cloud) kannst du dir mit `git fetch` als Branch holen und darauf weiterarbeiten.
-- Codex und Claude Code teilen sich diesen Ordner und arbeiten **abwechselnd, nie gleichzeitig**. Damit die Ãœbergabe klappt:
-  - **Beim Beenden:** alles committen und den Branch pushen, sodass `git status` sauber ist. Nichts Halbfertiges ungesichert im Ordner lassen.
-  - **Beim Start:** `git fetch`, dann `git status -sb` ansehen und den aktuellen Branch prÃ¼fen. Ist der Arbeitsordner nicht sauber, erst Carl fragen und nichts verwerfen. FÃ¼r eine neue Aufgabe von aktuellem `main` aus einen frischen Branch anlegen (`git switch main && git pull --ff-only && git switch -c work/<thema>`). Eine angefangene Aufgabe nur fortsetzen, wenn der Branch dazu passt.
-- Carl kann Claude bitten, eine Aufgabe an Codex zu geben: dann `codex exec "<Aufgabe>"` im Projektordner ausfÃ¼hren und das Ergebnis zusammenfassen.
-- Eine Werkstatt-Vorschau gibt es fÃ¼r dieses Projekt nicht (kein statischer Build). Der Container hat kein Docker und keinen Zugang zu Serverdiensten.
+## Runtime and validation
 
-## Sprache
-- Code, Bezeichner und Commit-Messages auf Englisch
-- Beschreibungen in Pull Requests und Antworten an Carl auf Deutsch
+Node.js/TypeScript is the primary runtime for self-hosted production. Keep the
+Worker entry point available where inexpensive, but do not confuse its hosted
+Jina behavior with the self-hosted security profile.
+
+Install dependencies with `npm ci --ignore-scripts` unless a particular lifecycle
+script has been reviewed and is necessary. Run `npm test`, `npm run type-check`,
+and the appropriate Biome lint/format checks before committing. Avoid unrelated
+upstream-wide formatting changes.
+
+The local development server must remain private. Never run `npm run deploy`
+or `wrangler deploy`, configure a Cloudflare login, expose public ports or change
+production services as part of development. Production deployment is a separate
+operator task.
+
+Real settings belong outside the Git checkout. Public examples contain names or
+placeholders only; they must not identify an actual installation. Keep private
+files out of Docker build contexts and logs as well as out of Git.
